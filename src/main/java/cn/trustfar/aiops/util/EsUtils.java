@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public class EsUtils {
     private static TransportClient client = null;
-    private String indexName = null;
+    private static String indexName = "pref_index";
     private String typeNmae = null;
 
     /**
@@ -187,7 +187,7 @@ public class EsUtils {
         } else if (type == CommonConstants.DEAL) {
             typeName = "deal";
         }
-        SearchResponse searchResponse = client.prepareSearch("pref_index")
+        SearchResponse searchResponse = client.prepareSearch(indexName)
                 .setTypes(typeName)
                 .setQuery(boolQueryBuilder)
                 .get();
