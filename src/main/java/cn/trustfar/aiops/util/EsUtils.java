@@ -212,12 +212,13 @@ public class EsUtils {
      * @param list            具体查看Parameter
      * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
      * @param timeType        CommonConstants.MINUTE、HOUR
+     * @param timeInterval    时间间隔,表示隔多少时间的数据为一
      * @param dataProcessType CommonConstants.AVG、SUM
      * @param path            hdfs路径
      * @return hdfs路徑
      * @throws Exception
      */
-    public static String searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int dataProcessType, String path) throws Exception {
+    public static String searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType, String path) throws Exception {
         HadoopUtils.connHadoopByHA();
         SearchHit[] searchHits = searchHits(list, dataType);
         for (SearchHit documentFields : searchHits) {
@@ -237,10 +238,11 @@ public class EsUtils {
      * @param list            具体查看Parameter
      * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
      * @param timeType        CommonConstants.MINUTE、HOUR
+     * @param timeInterval    时间间隔
      * @param dataProcessType CommonConstants.AVG、SUM
      * @return
      */
-    public static List<String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int dataProcessType) {
+    public static List<String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType) {
         SearchHit[] searchHits = searchHits(list, dataType);
         List<String> timeList = new ArrayList<String>();
         List<String> valueList = new ArrayList<>();
@@ -303,7 +305,7 @@ public class EsUtils {
         parameter2.setValueType(CommonConstants.SINGLE);
         result.add(parameter1);
         result.add(parameter2);
-        EsUtils.searchByFieldsAndRangeValue(result, 1, CommonConstants.MINUTE, CommonConstants.AVG);
+        EsUtils.searchByFieldsAndRangeValue(result, 1, CommonConstants.MINUTE,5, CommonConstants.AVG);
     }
 
 

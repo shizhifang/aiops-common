@@ -8,3 +8,4 @@
 target/
 out
 gen
+dependency-reduced-pom.xml
