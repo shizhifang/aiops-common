@@ -1,6 +1,7 @@
 package cn.trustfar.aiops.util;
 
 import cn.trustfar.aiops.constant.CommonConstants;
+import cn.trustfar.aiops.pojo.Parameter;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
@@ -157,34 +158,43 @@ public class EsUtils {
 
     /**
      * @param list
-     * @param type 1,2,3分别为性能、告警、交易
+     * @param dataType 1,2,3分别为性能、告警、交易
      * @return
      */
-    private static SearchHit[] searchHits(List<Map<String, List<Object>>> list, int type) {
+    private static SearchHit[] searchHits(List<Parameter> list, int dataType) {
         //1.创建多条件过滤查询器
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
-        for (Map<String, List<Object>> stringMap : list) {
-            for (Map.Entry<String, List<Object>> entry : stringMap.entrySet()) {
-                //2.创建具体每个条件的单值过滤器
-                List<Object> value = entry.getValue();
-                if (value.size() == 2) {
-                    RangeQueryBuilder builder = QueryBuilders.rangeQuery(entry.getKey()).gte(value.get(0)).lte(value.get(1));
+        //2.
+        for (Parameter parameter : list) {
+            String name = parameter.getName();
+            List<Object> value = parameter.getValue();
+            String valueType = parameter.getValueType();
+            //3.根据值得关系创建不同过滤器
+            if (valueType.equalsIgnoreCase(CommonConstants.OR)) {
+                if (value.size() == 1) {
+                    TermQueryBuilder builder = QueryBuilders.termQuery(name, value.get(0));
+                    //每一个条件的过滤加入到多条件查询中
                     boolQueryBuilder.must(builder);
-                } else if (value.size() == 1) {
-                    TermQueryBuilder builder = QueryBuilders.termQuery(entry.getKey(), value.get(0));
-                    //3.每一个条件的过滤加入到多条件查询中
-                    boolQueryBuilder.must(builder);
+                } else {
+
                 }
+            } else if (valueType.equalsIgnoreCase(CommonConstants.RANGE)) {
+                RangeQueryBuilder builder = QueryBuilders.rangeQuery(name).gte(value.get(0)).lte(value.get(1));
+                //每一个条件的过滤加入到多条件查询中
+                boolQueryBuilder.must(builder);
+            } else if (valueType.equalsIgnoreCase(CommonConstants.SINGLE)) {
+                TermQueryBuilder builder = QueryBuilders.termQuery(name, value.get(0));
+                boolQueryBuilder.must(builder);
             }
         }
         //4.查询解析不同的es表，性能表，交易表，告警表
         String typeName = null;
         //性能表
-        if (type == CommonConstants.PERFORMANCE) {
-            typeName = "perform";
-        } else if (type == CommonConstants.AlERT) {
+        if (dataType == CommonConstants.PERFORMANCE) {
+            typeName = "prefTable";
+        } else if (dataType == CommonConstants.AlERT) {
             typeName = "alert";
-        } else if (type == CommonConstants.DEAL) {
+        } else if (dataType == CommonConstants.DEAL) {
             typeName = "deal";
         }
         SearchResponse searchResponse = client.prepareSearch(indexName)
@@ -196,10 +206,16 @@ public class EsUtils {
         return hits1;
     }
 
-    public static String searchByFieldsAndRangeValue(List<Map<String, List<Object>>> list, int type, String path) {
-        SearchHit[] searchHits = searchHits(list, type);
+    public static String searchByFieldsAndRangeValue(List<Parameter> list,int dataType, int timeType, int dataProcessType ,String path) throws Exception {
+        HadoopUtils.connHadoopByHA();
+        SearchHit[] searchHits = searchHits(list, dataType);
         for (SearchHit documentFields : searchHits) {
-            System.out.println(documentFields.getSourceAsString());
+            Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
+            Object time = sourceAsMap.get("TIME");
+            System.out.println(time.toString());
+            Object value = sourceAsMap.get("VALUE");
+            System.out.println(value.toString());
+//            System.out.println(documentFields.getSourceAsString());
         }
         return path;
     }
@@ -210,15 +226,15 @@ public class EsUtils {
      * @param list 字段和值组成的list集合
      *             <Map<String, List<Object>> key值为es中字段，value为es中字段的值
      *             List<Object> 集合有一个值代表key=value，有两个值代表index0<=key<=index1
-     * @param type 1,2,3分别为性能、告警、交易
+     * @param dataType 1,2,3分别为性能、告警、交易
      * @return 返回TIME和VALUE的按, 分割的集合
      */
-    public static List<String> searchByFieldsAndRangeValue(List<Map<String, List<Object>>> list, int type) {
-        SearchHit[] searchHits = searchHits(list, type);
+    public static List<String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int dataProcessType) {
+        SearchHit[] searchHits = searchHits(list, dataType);
         List<String> result = new ArrayList<String>();
         for (SearchHit documentFields : searchHits) {
             Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
-            Object time = sourceAsMap.get("MONITOR_TIME");
+            Object time = sourceAsMap.get("TIME");
             System.out.println(time.toString());
             Object value = sourceAsMap.get("VALUE");
             System.out.println(value.toString());
@@ -247,24 +263,30 @@ public class EsUtils {
         EsUtils.batchInsert(jsonDatas, "pref_index", "prefTable");
     }
 
-
+    /**
+     * 采集间隔,
+     * 平均，累加，
+     * 字段或
+     */
     public static void main(String[] args) throws UnknownHostException {
         EsUtils.checkinitClient("trustfar-elastic", "172.16.100.204");
 //        EsUtils.testInsert();
-        List<Map<String, List<Object>>> result = new ArrayList<>();
-        Map<String, List<Object>> map = new HashMap<>();
+        List<Parameter> result = new ArrayList<>();
+        Parameter parameter1 = new Parameter();
+        Parameter parameter2 = new Parameter();
+        parameter1.setName("KPI");
         List<Object> list = new ArrayList<>();
         list.add("ccccccccccc");
-        map.put("KPI", list);
-        result.add(map);
-
-        Map<String, List<Object>> map2 = new HashMap<>();
+        parameter1.setValue(list);
+        parameter1.setValueType(CommonConstants.SINGLE);
+        parameter2.setName("TIME");
         List<Object> list2 = new ArrayList<>();
         list2.add("201902141253");
-        map2.put("TIME", list2);
-        result.add(map2);
-
-        EsUtils.searchByFieldsAndRangeValue(result, 1);
+        parameter2.setValue(list2);
+        parameter2.setValueType(CommonConstants.SINGLE);
+        result.add(parameter1);
+        result.add(parameter2);
+        EsUtils.searchByFieldsAndRangeValue(result, 1,CommonConstants.MINUTE,CommonConstants.AVG);
     }
 
 
