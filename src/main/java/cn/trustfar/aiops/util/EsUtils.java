@@ -157,7 +157,7 @@ public class EsUtils {
     }
 
     /**
-     * @param list
+     * @param list     具体查看Parameter
      * @param dataType 1,2,3分别为性能、告警、交易
      * @return
      */
@@ -206,7 +206,18 @@ public class EsUtils {
         return hits1;
     }
 
-    public static String searchByFieldsAndRangeValue(List<Parameter> list,int dataType, int timeType, int dataProcessType ,String path) throws Exception {
+    /**
+     * 根据es中的字段的值或者es中的字段的值得范围进行组合过滤查询，查询结果放在hdfs上面
+     *
+     * @param list            具体查看Parameter
+     * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
+     * @param timeType        CommonConstants.MINUTE、HOUR
+     * @param dataProcessType CommonConstants.AVG、SUM
+     * @param path            hdfs路径
+     * @return hdfs路徑
+     * @throws Exception
+     */
+    public static String searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int dataProcessType, String path) throws Exception {
         HadoopUtils.connHadoopByHA();
         SearchHit[] searchHits = searchHits(list, dataType);
         for (SearchHit documentFields : searchHits) {
@@ -223,26 +234,32 @@ public class EsUtils {
     /**
      * 根据es中的字段的值或者es中的字段的值得范围进行组合过滤查询
      *
-     * @param list 字段和值组成的list集合
-     *             <Map<String, List<Object>> key值为es中字段，value为es中字段的值
-     *             List<Object> 集合有一个值代表key=value，有两个值代表index0<=key<=index1
-     * @param dataType 1,2,3分别为性能、告警、交易
-     * @return 返回TIME和VALUE的按, 分割的集合
+     * @param list            具体查看Parameter
+     * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
+     * @param timeType        CommonConstants.MINUTE、HOUR
+     * @param dataProcessType CommonConstants.AVG、SUM
+     * @return
      */
     public static List<String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int dataProcessType) {
         SearchHit[] searchHits = searchHits(list, dataType);
-        List<String> result = new ArrayList<String>();
+        List<String> timeList = new ArrayList<String>();
+        List<String> valueList = new ArrayList<>();
         for (SearchHit documentFields : searchHits) {
             Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
             Object time = sourceAsMap.get("TIME");
+            timeList.add(time.toString());
             System.out.println(time.toString());
             Object value = sourceAsMap.get("VALUE");
             System.out.println(value.toString());
-            result.add(time.toString() + "," + value.toString());
-
+            valueList.add(value.toString());
 //            System.out.println(documentFields.getSourceAsString());
         }
-        return result;
+        if (timeType == CommonConstants.MINUTE) {
+
+        } else if (timeType == CommonConstants.HOUR) {
+
+        }
+        return timeList;
     }
 
     public static void testInsert() throws UnknownHostException {
@@ -286,7 +303,7 @@ public class EsUtils {
         parameter2.setValueType(CommonConstants.SINGLE);
         result.add(parameter1);
         result.add(parameter2);
-        EsUtils.searchByFieldsAndRangeValue(result, 1,CommonConstants.MINUTE,CommonConstants.AVG);
+        EsUtils.searchByFieldsAndRangeValue(result, 1, CommonConstants.MINUTE, CommonConstants.AVG);
     }
 
 
