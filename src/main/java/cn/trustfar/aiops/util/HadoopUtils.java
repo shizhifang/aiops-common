@@ -1,4 +1,5 @@
 package cn.trustfar.aiops.util;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class HadoopUtils {
     private static ReadProps readProps = new ReadProps("commo_config.properties");
@@ -18,7 +20,6 @@ public class HadoopUtils {
     private static DistributedFileSystem dfs = null;//多namenode方式
     private static Configuration conf = null;
     private static Logger logger = LoggerFactory.getLogger(HadoopUtils.class.getSimpleName());
-
 
 
     /**
@@ -98,31 +99,6 @@ public class HadoopUtils {
 
 
     /**
-     * 下载文件到本地
-     *
-     * @param srcPath hdfs路径
-     * @param dstPath 本地文件路径
-     */
-    public static void downloadFile(String srcPath, String dstPath) throws IOException {
-        FSDataInputStream in = null;
-        FileOutputStream out = null;
-        try {
-            if (null == dfs) {
-                connHadoopByHA();
-            }
-            in = dfs.open(new Path(srcPath));
-            out = new FileOutputStream(dstPath);
-            IOUtils.copyBytes(in, out, 4096, false);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }finally {
-            out.close();
-            in.close();
-        }
-    }
-
-
-    /**
      * 判断是否是目录
      *
      * @param srcPath
@@ -143,7 +119,6 @@ public class HadoopUtils {
         }
         return false;
     }
-
 
 
     /**
@@ -167,21 +142,7 @@ public class HadoopUtils {
         conf.set("dfs.client.failover.proxy.provider." + nameservices, "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider");
         String hdfsRPCUrl = "hdfs://" + nameservices + ":8020";     //HDFS_RPC_PORT=8020 也是从环境变量获取 或 dfs.namenode.rpc-address.cluster1.nn1
         dfs = (DistributedFileSystem) DistributedFileSystem.get(URI.create(hdfsRPCUrl), conf);
-        logger.info("******连接hdfs[{}]成功******",hdfsRPCUrl);
-    }
-
-
-    /**
-     * 只删除文件夹下面的文件
-     * @param hdfsPath hdfs的文件夹路径
-     */
-    public static void deleteFiles(String hdfsPath) throws Exception {
-        if (isExit(hdfsPath)) {
-            List<String> filePaths = getFilePaths(hdfsPath, "", false);
-            for (String filePath : filePaths) {
-                removeFile(filePath, false);
-            }
-        }
+        logger.info("******连接hdfs[{}]成功******", hdfsRPCUrl);
     }
 
     /**
@@ -217,7 +178,7 @@ public class HadoopUtils {
      * 上传本地文件到HDFS
      *
      * @param localDir 本地文件路径
-     * @param hdfsDir hdfs文件夹路径名
+     * @param hdfsDir  hdfs文件夹路径名
      */
     public static void copyFromLocalFile(String localDir, String hdfsDir) throws Exception {
         if (null == dfs) {
@@ -251,7 +212,6 @@ public class HadoopUtils {
             e.printStackTrace();
             logger.error(e.getMessage());
         }
-
         return touch;
     }
 
@@ -267,15 +227,13 @@ public class HadoopUtils {
         FSDataOutputStream fsDataOutputStream = null;
         try {
             Path path = new Path(hdfsPath);
-            if (dfs.exists(path)) {
-                fsDataOutputStream = dfs.create(path);
-                //fsDataOutputStream.writeUTF(info);
-                fsDataOutputStream.writeBytes(info);
-                fsDataOutputStream.flush();
-                logger.info(hdfsPath + " 文件存在...");
-            } else {
-                logger.info(hdfsPath + " 文件不存在...");
+            if (!dfs.exists(path)) {
+                dfs.createNewFile(path);
             }
+            fsDataOutputStream = dfs.create(path);
+            //fsDataOutputStream.writeUTF(info);
+            fsDataOutputStream.writeBytes(info);
+            fsDataOutputStream.flush();
         } catch (Exception e) {
             e.printStackTrace();
             logger.error(e.getMessage());
@@ -288,6 +246,59 @@ public class HadoopUtils {
             }
         }
         return write;
+    }
+
+    public static void writeByList(String hdfsPath, List<String> list) {
+        //按照每4万条最多一个批次写入到hdfs中
+        StringBuilder stringBuilder = new StringBuilder();
+        int size = list.size();
+        int cache = 40000;
+        int num = size / cache;
+        //假设size=12  cache=4
+        if (size > cache) {
+            int before = 0;
+            int tmp = 1;
+            while (tmp <= num) {
+                //第一次int i=0 i<4，i++ tmp=1 cache=4 num=3
+                //第二次int i=4,i<8,i++  tmp=2 cache=4 num=3
+                //第二次int i=8,i<12,i++ tmp=3 cache=4 num=3
+                for (int i = before; i < cache * tmp; i++) {
+                    stringBuilder.append(list.get(i) + "\n");
+                    write(hdfsPath, stringBuilder.toString());
+                }
+                before = cache * tmp;
+                tmp++;
+            }
+            if (size % cache != 0) {
+                //如果size=14 ，size%cache不等于0 还有在增加一次
+                //
+                // i=(cache=4*num=3);i<14;i++
+                for (int i = cache * num; i < size; i++) {
+                    stringBuilder.append(list.get(i) + "\n");
+                    write(hdfsPath, stringBuilder.toString());
+                }
+            }
+        } else {//size<cache
+            for (String s : list) {
+                stringBuilder.append(s + "\n");
+                write(hdfsPath, stringBuilder.toString());
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(12 / 4);
+        List<String> list = new ArrayList<>();
+
+        list.add("aaaaaa,ddddddd");
+        list.add("cadcas,xxxxx");
+        list.add("ccccccc,safdsa");
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String s : list) {
+            stringBuilder.append(s + "\n");
+        }
+        System.out.println(stringBuilder.toString());
+        System.out.println(list.toString());
     }
 
     /**

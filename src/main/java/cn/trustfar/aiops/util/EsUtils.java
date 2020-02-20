@@ -7,6 +7,7 @@ import cn.trustfar.aiops.bean.PerfReusltBean;
 import cn.trustfar.aiops.constant.CommonConstants;
 import cn.trustfar.aiops.pojo.Parameter;
 import cn.trustfar.aiops.pojo.PerfAlertDealData;
+import lombok.SneakyThrows;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -210,84 +211,53 @@ public class EsUtils {
     /**
      * 根据es中的字段的值或者es中的字段的值得范围进行组合过滤查询，查询结果放在hdfs上面
      *
-     * @param list            具体查看Parameter
+     * @param parameters            具体查看Parameter
      * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
-     * @param timeType        CommonConstants.MINUTE、HOUR
-     * @param timeInterval    时间间隔,表示隔多少时间的数据为一
-     * @param dataProcessType CommonConstants.AVG、SUM
+     *                        @param sendFrequency
      * @param path            hdfs路径
      * @return hdfs路徑
-     * @throws Exception
+     * @throws Exception hadoop连接异常
      */
-    public static String searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType, String path) throws Exception {
+    @SneakyThrows
+    public static String putEsData2Hdfs(List<Parameter> parameters,
+                                                     int dataType,
+                                                     int sendFrequency,
+                                                     String path){
         HadoopUtils.connHadoopByHA();
-        SearchHit[] searchHits = searchHits(list, dataType);
-        for (SearchHit documentFields : searchHits) {
-            Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
-            Object time = sourceAsMap.get("TIME");
-            System.out.println(time.toString());
-            Object value = sourceAsMap.get("VALUE");
-            System.out.println(value.toString());
-//            System.out.println(documentFields.getSourceAsString());
-        }
+        List<String> list = getListTimeAndValue(parameters, dataType, sendFrequency);
+        HadoopUtils.writeByList(path,list);
         return path;
     }
 
+
     /**
-     * 根据es中的字段的值或者es中的字段的值得范围进行组合过滤查询
      *
-     * @param list            具体查看Parameter
-     * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
-     * @param timeType        CommonConstants.MINUTE、HOUR
-     * @param timeInterval    时间间隔
-     * @param dataProcessType CommonConstants.AVG、SUM
+     * @param list 查看Parameter类
+     * @param dataType CommonConstants.PERFORMANCE.AlERT.DEAL
+     *@param sendFrequency 数据发送的频率,用于缺失值计算
      * @return
      */
-    public static Map<String,String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType) {
+    public static List<String> getListTimeAndValue(List<Parameter> list,
+                                                       int dataType,
+                                                       int sendFrequency){
         SearchHit[] searchHits = searchHits(list, dataType);
-        Map<String,String> resultMap = new LinkedHashMap<>();//最终返回的数据key=时间,
-        List<String> timeList = new ArrayList<>();//存储分钟时间从小到大
-        List<String> valueList = new ArrayList<>();//存储分钟时间对应的值
-        for (int i = 0; i < searchHits.length; i++) {
-            Map<String, Object> sourceAsMap = searchHits[i].getSourceAsMap();
-        }
+        List<String> resultList = new ArrayList<>();//最终返回的数据
         for (SearchHit documentFields : searchHits) {
             Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
             //格式年月日时分秒20190123100908
-            Object time = sourceAsMap.get("TIME");
-            //转换成分钟格式年月日时分201901231009
-            timeList.add(time.toString().substring(0, time.toString().length() - 2));
+            Object time = sourceAsMap.get("MONITOR_TIME");
+            //转换成分钟格式年月日时分20190123100900
+            String minuteTime = time.toString().substring(0, time.toString().length() - 2)+"00";
+            System.out.println(minuteTime);
             System.out.println(time.toString());
             Object value = sourceAsMap.get("VALUE");
             System.out.println(value.toString());
-            valueList.add(value.toString());
-//            System.out.println(documentFields.getSourceAsString());
+            resultList.add(minuteTime+","+value.toString());
         }
-        if (timeType == CommonConstants.MINUTE && timeInterval != 1) {
-            //time格式201901231009
-            String firstTime = timeList.get(0);
-            Calendar firstCalendar = TimeUtils.getMinuteTimeByStringMinuteTime(firstTime);
-            String endTime = timeList.get(timeList.size() - 1);
-            Calendar endCalendar = TimeUtils.getMinuteTimeByStringMinuteTime(endTime);
-            long tmp = (endCalendar.getTime().getTime() - firstCalendar.getTime().getTime()) / (60 * 10000);
-            Calendar nextCalendar = null;
-//            resultMap.put(firstTime,valueList.get(0));
-            for (int i = 0; i < tmp; i++) {
-                firstCalendar.add(Calendar.MINUTE, timeInterval);
-                //nextCalendar的时间为最终要返回的时间
-                nextCalendar = firstCalendar;
-                String next = TimeUtils.getMinuteTimeByMinuteCalendar(nextCalendar);
-                int indexOf = timeList.indexOf(next);
-                String value=null;
-                for(int j=0;j<indexOf;j++){
-//                    valueList.get(j)
-                }
-                if (indexOf < 0) {
+        //TODO缺失值计算
+        int missFrequency = sendFrequency * CommonConstants.Unit_five;
 
-                }
-            }
-        }
-        return resultMap;
+        return resultList;
     }
 
     /**
@@ -507,4 +477,64 @@ public class EsUtils {
             client.close();
         }
     }
+
+    //    public static Map<String,String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType) {
+//        SearchHit[] searchHits = searchHits(list, dataType);
+//        Map<String,String> resultMap = new LinkedHashMap<>();//最终返回的数据key=时间,
+//        List<String> timeList = new ArrayList<>();//存储分钟时间从小到大
+//        List<Double> valueList = new ArrayList<>();//存储分钟时间对应的值
+//        for (int i = 0; i < searchHits.length; i++) {
+//            Map<String, Object> sourceAsMap = searchHits[i].getSourceAsMap();
+//        }
+//        for (SearchHit documentFields : searchHits) {
+//            Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
+//            //格式年月日时分秒20190123100908
+//            Object time = sourceAsMap.get("TIME");
+//            //转换成分钟格式年月日时分201901231009
+//            timeList.add(time.toString().substring(0, time.toString().length() - 2)+"00");
+//            System.out.println(time.toString());
+//            Object value = sourceAsMap.get("VALUE");
+//            System.out.println(value.toString());
+//            valueList.add(Double.valueOf(value.toString()));
+////            System.out.println(documentFields.getSourceAsString());
+//        }
+//        if (timeType == CommonConstants.MINUTE && timeInterval != 1) {
+//            //time格式201901231009
+//            String firstTime = timeList.get(0);
+//            Calendar firstCalendar = TimeUtils.getCalendarByStringMinuteTime(firstTime);
+//            String endTime = timeList.get(timeList.size() - 1);
+//            Calendar endCalendar = TimeUtils.getCalendarByStringMinuteTime(endTime);
+//            long tmp = (endCalendar.getTime().getTime() - firstCalendar.getTime().getTime()) / (60 * 10000);
+//            Calendar nextCalendar = null;
+////            resultMap.put(firstTime,valueList.get(0));
+//            for (int i = 0; i < tmp; i++) {
+//                firstCalendar.add(Calendar.MINUTE, timeInterval);
+//                //nextCalendar的时间为最终要返回的时间
+//                nextCalendar = firstCalendar;
+//                String next = TimeUtils.getStringByMinuteCalendar(nextCalendar);
+//                int indexOf = timeList.indexOf(next);
+//                String value=null;
+//                int firstIndex=0;
+//                if(indexOf>=0){
+//                    for(int j=0;j<indexOf;j++){
+//                        List<Double> val = valueList.subList(firstIndex, indexOf);
+//                        String resultValue=null;
+//                        if(dataProcessType==CommonConstants.AVG){
+////                            val.stream().mapToDouble().average().getAsDouble();
+//                        }else if(dataProcessType==CommonConstants.SUM){
+//                            Double aDouble = val.stream().reduce(Double::sum).get();
+//                        }
+//
+//                    }
+//                    firstIndex=indexOf;
+//                }else {
+//
+//                }
+//
+//
+//            }
+//        }
+//        return resultMap;
+//    }
+
 }

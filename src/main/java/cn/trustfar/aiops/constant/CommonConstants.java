@@ -38,4 +38,15 @@ public class CommonConstants {
      */
     public static final int AVG=1;
     public static final int SUM=2;
+
+    /**
+     * sendFrequency
+     *FrequencyMinute 1分钟的发送频率
+     */
+    public static final int FrequencyMinute=1;
+    /**
+     * 缺失值计算倍数单位
+     * Unit_five 5倍
+     */
+    public static final int Unit_five=5;
 }
