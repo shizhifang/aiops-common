@@ -36,9 +36,6 @@ import java.util.*;
  */
 public class EsUtils {
     private static TransportClient client = null;
-    private static String indexName = "pref_index";
-    private String typeNmae = null;
-
     /**
      * 初始化es的客户端连接工具
      *
@@ -83,21 +80,21 @@ public class EsUtils {
 
     /**
      * 批量把json数据插入es
-     *
+     *6.4版本index下面只能有一个type
      * @param jsonDatas
      * @param indexName es的索引库名必须是小写英文字母不能以下划线开头
-     * @param typeName  es索引库表名
      * @return
      * @throws UnknownHostException
      */
-    public static boolean batchInsert(List<String> jsonDatas, String indexName, String typeName) throws UnknownHostException {
-        System.out.println("插入es的数据量-----------》" + jsonDatas.size());
+    public static boolean batchInsert(List<String> jsonDatas, String indexName) throws UnknownHostException {
+        System.out.println("将要插入es的数据量-----------》" + jsonDatas.size());
         if (jsonDatas.size() == 0) {
+            System.out.println("此批次无es数据插入");
             return false;
         }
         BulkRequestBuilder bulk = client.prepareBulk();
         for (String jsonData : jsonDatas) {
-            bulk.add(buildIndex(jsonData, indexName, typeName));
+            bulk.add(buildIndex(jsonData, indexName, CommonConstants.EsIndexType));
         }
         BulkResponse bulkItemResponses = bulk.execute().actionGet();
         RestStatus status = bulkItemResponses.status();
@@ -107,7 +104,7 @@ public class EsUtils {
 
     /**
      * es数据库添加一条json数据
-     *
+     *6.4版本index下面只能有一个type
      * @param jsonData  要添加的数据
      * @param indexName es索引库名
      * @param typeName  es索引库表名
@@ -194,12 +191,12 @@ public class EsUtils {
             }
         }
         //4.查询解析不同的es表，性能表，交易表，告警表
-        String typeName = getEsIndexType(dataType);
+        String esIndex = getEsIndex(dataType);
         //按照时间字段排序
-        FieldSortBuilder fieldSortBuilder = SortBuilders.fieldSort("TIME");
+        FieldSortBuilder fieldSortBuilder = SortBuilders.fieldSort("MONITOR_TIME");
         //5.client访问es返回hits
-        SearchResponse searchResponse = client.prepareSearch(indexName)
-                .setTypes(typeName)
+        SearchResponse searchResponse = client.prepareSearch(esIndex)
+                .setTypes(CommonConstants.EsIndexType)
                 .setQuery(boolQueryBuilder)
                 .addSort(fieldSortBuilder)
                 .get();
@@ -208,26 +205,6 @@ public class EsUtils {
         return hits1;
     }
 
-    /**
-     * 根据es中的字段的值或者es中的字段的值得范围进行组合过滤查询，查询结果放在hdfs上面
-     *
-     * @param parameters            具体查看Parameter
-     * @param dataType        CommonConstants.PERFORMANCE、AlERT、DEAL
-     *                        @param sendFrequency
-     * @param path            hdfs路径
-     * @return hdfs路徑
-     * @throws Exception hadoop连接异常
-     */
-    @SneakyThrows
-    public static String putEsData2Hdfs(List<Parameter> parameters,
-                                                     int dataType,
-                                                     int sendFrequency,
-                                                     String path){
-        HadoopUtils.connHadoopByHA();
-        List<String> list = getListTimeAndValue(parameters, dataType, sendFrequency);
-        HadoopUtils.writeByList(path,list);
-        return path;
-    }
 
 
     /**
@@ -256,7 +233,6 @@ public class EsUtils {
         }
         //TODO缺失值计算
         int missFrequency = sendFrequency * CommonConstants.Unit_five;
-
         return resultList;
     }
 
@@ -279,7 +255,7 @@ public class EsUtils {
         jsonObject1.put("CI", "ppppppppppp");
         jsonObject1.put("TIME", "201902141252");
 //        jsonDatas.add(jsonObject1.toString());
-        EsUtils.batchInsert(jsonDatas, "pref_index", "prefTable");
+        EsUtils.batchInsert(jsonDatas, "pref_index");
     }
 
     /**
@@ -328,10 +304,10 @@ public class EsUtils {
             boolQueryBuilder.must(monitor_time);
         }
         //4.查询解析不同的es表，性能表，交易表，告警表
-        String typeName = getEsIndexType(dataType);
+        String indexName = getEsIndex(dataType);
         //5.client访问es返回hits
         SearchResponse searchResponse = client.prepareSearch(indexName)
-                .setTypes(typeName)
+                .setTypes(CommonConstants.EsIndexType)
                 .setQuery(boolQueryBuilder)
                 .get();
         SearchHits hits = searchResponse.getHits();
@@ -429,44 +405,25 @@ public class EsUtils {
      * @param dataType 查看CommonConstants类
      * @return es索引库的表名字
      */
-    private static String getEsIndexType(int dataType) {
-        String typeName = null;
+    private static String getEsIndex(int dataType) {
+        String indexName = null;
         //性能表
         if (dataType == CommonConstants.PERFORMANCE) {
-            typeName = "prefTable";
+            indexName = CommonConstants.EsPerfIndex;
         } else if (dataType == CommonConstants.AlERT) {
-            typeName = "alertTable";
+            indexName = CommonConstants.EsAlertIndex;
         } else if (dataType == CommonConstants.DEAL) {
-            typeName = "dealTable";
+            indexName = CommonConstants.EsDealIndex;
         }
-        return typeName;
+        return indexName;
     }
 
     public static void main(String[] args) throws UnknownHostException {
-        PerfAlertDealData perfAlertDealData = new PerfAlertDealData();
-        perfAlertDealData.setKpiId("sssssss");
-        String timeEnd = perfAlertDealData.getTimeEnd();
-        boolean empty = StringUtils.isEmpty(timeEnd);
-        System.out.println(empty);
-        System.out.println(timeEnd);
-//        EsUtils.checkinitClient("trustfar-elastic", "172.16.100.204");
-////        EsUtils.testInsert();
-//        List<Parameter> result = new ArrayList<>();
-//        Parameter parameter1 = new Parameter();
-//        Parameter parameter2 = new Parameter();
-//        parameter1.setName("KPI");
-//        List<Object> list = new ArrayList<>();
-//        list.add("ccccccccccc");
-//        parameter1.setValue(list);
-//        parameter1.setValueType(CommonConstants.SINGLE);
-//        parameter2.setName("TIME");
-//        List<Object> list2 = new ArrayList<>();
-//        list2.add("201902141253");
-//        parameter2.setValue(list2);
-//        parameter2.setValueType(CommonConstants.SINGLE);
-//        result.add(parameter1);
-//        result.add(parameter2);
-//        EsUtils.searchByFieldsAndRangeValue(result, 1, CommonConstants.MINUTE, 5, CommonConstants.AVG);
+        checkinitClient("trustfar-elastic","172.16.100.205");
+        deleteIndex("pref_index");
+//        createIndex("pref_index");
+//        testInsert();
+        close();
     }
 
     /**

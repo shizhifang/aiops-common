@@ -49,4 +49,12 @@ public class CommonConstants {
      * Unit_five 5倍
      */
     public static final int Unit_five=5;
+    /**
+     *
+     */
+    public static final String EsPerfIndex="perf_index";
+    public static final String EsDealIndex="deal_index";
+    public static final String EsAlertIndex="alert_index";
+    public static final String EsIndexType="type";
+
 }
