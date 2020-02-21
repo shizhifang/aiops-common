@@ -9,13 +9,17 @@ import cn.trustfar.aiops.pojo.Parameter;
 import cn.trustfar.aiops.pojo.PerfAlertDealData;
 import lombok.SneakyThrows;
 import org.apache.commons.lang.StringUtils;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.*;
 import org.elasticsearch.rest.RestStatus;
@@ -198,7 +202,7 @@ public class EsUtils {
         SearchResponse searchResponse = client.prepareSearch(esIndex)
                 .setTypes(CommonConstants.EsIndexType)
                 .setQuery(boolQueryBuilder)
-                .addSort(fieldSortBuilder)
+//                .addSort(fieldSortBuilder)
                 .get();
         SearchHits hits = searchResponse.getHits();
         SearchHit[] hits1 = hits.getHits();
@@ -225,10 +229,7 @@ public class EsUtils {
             Object time = sourceAsMap.get("MONITOR_TIME");
             //转换成分钟格式年月日时分20190123100900
             String minuteTime = time.toString().substring(0, time.toString().length() - 2)+"00";
-            System.out.println(minuteTime);
-            System.out.println(time.toString());
             Object value = sourceAsMap.get("VALUE");
-            System.out.println(value.toString());
             resultList.add(minuteTime+","+value.toString());
         }
         //TODO缺失值计算
@@ -420,9 +421,28 @@ public class EsUtils {
 
     public static void main(String[] args) throws UnknownHostException {
         checkinitClient("trustfar-elastic","172.16.100.205");
-        deleteIndex("pref_index");
+//        deleteIndex("pref_index");
 //        createIndex("pref_index");
 //        testInsert();
+        List<Parameter> parameters=new ArrayList<>();
+        //1.创建两个参数对象
+        Parameter parameter1 = new Parameter("CI_ID",CommonConstants.SINGLE);
+        Parameter parameter2 = new Parameter("MONITOR_TIME",CommonConstants.RANGE);
+        //2.往第一个参数对象放值
+        List<Object> list = new ArrayList<>();
+        list.add("26");
+        parameter1.setValue(list);
+        //3.往第二个参数对象放值
+        List<Object> list2 = new ArrayList<>();
+        list2.add("20200108000100");
+        list2.add("20201108000100");
+        parameter2.setValue(list2);
+        parameters.add(parameter1);
+        parameters.add(parameter2);
+        List<String> listTimeAndValue = EsUtils.getListTimeAndValue(parameters, 1, 1);
+        for (String s : listTimeAndValue) {
+            System.out.println(s);
+        }
         close();
     }
 
@@ -435,63 +455,5 @@ public class EsUtils {
         }
     }
 
-    //    public static Map<String,String> searchByFieldsAndRangeValue(List<Parameter> list, int dataType, int timeType, int timeInterval, int dataProcessType) {
-//        SearchHit[] searchHits = searchHits(list, dataType);
-//        Map<String,String> resultMap = new LinkedHashMap<>();//最终返回的数据key=时间,
-//        List<String> timeList = new ArrayList<>();//存储分钟时间从小到大
-//        List<Double> valueList = new ArrayList<>();//存储分钟时间对应的值
-//        for (int i = 0; i < searchHits.length; i++) {
-//            Map<String, Object> sourceAsMap = searchHits[i].getSourceAsMap();
-//        }
-//        for (SearchHit documentFields : searchHits) {
-//            Map<String, Object> sourceAsMap = documentFields.getSourceAsMap();
-//            //格式年月日时分秒20190123100908
-//            Object time = sourceAsMap.get("TIME");
-//            //转换成分钟格式年月日时分201901231009
-//            timeList.add(time.toString().substring(0, time.toString().length() - 2)+"00");
-//            System.out.println(time.toString());
-//            Object value = sourceAsMap.get("VALUE");
-//            System.out.println(value.toString());
-//            valueList.add(Double.valueOf(value.toString()));
-////            System.out.println(documentFields.getSourceAsString());
-//        }
-//        if (timeType == CommonConstants.MINUTE && timeInterval != 1) {
-//            //time格式201901231009
-//            String firstTime = timeList.get(0);
-//            Calendar firstCalendar = TimeUtils.getCalendarByStringMinuteTime(firstTime);
-//            String endTime = timeList.get(timeList.size() - 1);
-//            Calendar endCalendar = TimeUtils.getCalendarByStringMinuteTime(endTime);
-//            long tmp = (endCalendar.getTime().getTime() - firstCalendar.getTime().getTime()) / (60 * 10000);
-//            Calendar nextCalendar = null;
-////            resultMap.put(firstTime,valueList.get(0));
-//            for (int i = 0; i < tmp; i++) {
-//                firstCalendar.add(Calendar.MINUTE, timeInterval);
-//                //nextCalendar的时间为最终要返回的时间
-//                nextCalendar = firstCalendar;
-//                String next = TimeUtils.getStringByMinuteCalendar(nextCalendar);
-//                int indexOf = timeList.indexOf(next);
-//                String value=null;
-//                int firstIndex=0;
-//                if(indexOf>=0){
-//                    for(int j=0;j<indexOf;j++){
-//                        List<Double> val = valueList.subList(firstIndex, indexOf);
-//                        String resultValue=null;
-//                        if(dataProcessType==CommonConstants.AVG){
-////                            val.stream().mapToDouble().average().getAsDouble();
-//                        }else if(dataProcessType==CommonConstants.SUM){
-//                            Double aDouble = val.stream().reduce(Double::sum).get();
-//                        }
-//
-//                    }
-//                    firstIndex=indexOf;
-//                }else {
-//
-//                }
-//
-//
-//            }
-//        }
-//        return resultMap;
-//    }
 
 }

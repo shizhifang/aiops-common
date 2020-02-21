@@ -15,4 +15,12 @@ public class Parameter {
     // 或的情况         value可以有多个值
     // 范围的情况       value只能有2个值
     private String valueType;
+
+    public Parameter(String name, String valueType) {
+        this.name = name;
+        this.valueType = valueType;
+    }
+
+    public Parameter() {
+    }
 }
