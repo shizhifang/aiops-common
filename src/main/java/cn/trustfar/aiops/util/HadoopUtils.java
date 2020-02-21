@@ -3,16 +3,13 @@ package cn.trustfar.aiops.util;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.apache.hadoop.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class HadoopUtils {
     private static ReadProps readProps = new ReadProps("commo_config.properties");
@@ -127,7 +124,7 @@ public class HadoopUtils {
      * @throws Exception
      */
     public static void connHadoopByHA() throws Exception {
-//        System.setProperty("HADOOP_USER_NAME", "trustfar"); //针对hadoop，实际生效
+        System.setProperty("HADOOP_USER_NAME", "hdfs"); //针对hadoop，实际生效
         conf = new Configuration();
 //        String ticketCachePath = conf.get(CommonConfigurationKeys.KERBEROS_TICKET_CACHE_PATH);
 //        UserGroupInformation ugi = UserGroupInformation.getBestUGI(ticketCachePath, "trustfar");

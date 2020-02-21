@@ -118,50 +118,6 @@ public class EsUtils {
         return client.prepareIndex(indexName, typeName).setSource(jsonData, XContentType.JSON);
     }
 
-    /**
-     * 查询索引库中某个表的所有数据
-     *
-     * @param indexName 索引库名
-     * @param typeName  表名
-     *                  example：结果为一条条json串
-     *                  {"KPI_UNIT":"KPI_UNIT_16","KPI":"KPI_16","CI_ID":"CI_IDssssssa7","CI_CODE":"123612367216","VALUE":"VALUE_16","DEV_CODE":"192.168.0.17","KPI_ID":"KPI_ID_7","CI_TYPE_NAME":"交换机","MONITOR_TIME":"20200120151623","CI_NAME":"CI_NAME_1","CI_TYPE_ID":"在线字数统计16","KPI_NAME":"KPI_NAME_16","KPI_CODE":"KPI_CODE_16","rowKey":"11921680017002020012015KPI_ID_7CI_IDssssssa7"}
-     *                  {"KPI_UNIT":"KPI_UNIT_19","KPI":"KPI_19","CI_ID":"CI_IDssssssa1","CI_CODE":"123612367219","VALUE":"VALUE_19","DEV_CODE":"192.168.0.11","KPI_ID":"KPI_ID_1","CI_TYPE_NAME":"交换机","MONITOR_TIME":"20200120151925","CI_NAME":"CI_NAME_1","CI_TYPE_ID":"在线字数统计19","KPI_NAME":"KPI_NAME_19","KPI_CODE":"KPI_CODE_19","rowKey":"11921680011002020012015KPI_ID_1CI_IDssssssa1"}
-     */
-    public static void queryAll(String indexName, String typeName) {
-        SearchResponse searchResponse = client
-                .prepareSearch(indexName)
-                .setTypes(typeName)
-                .setQuery(new MatchAllQueryBuilder())
-                .get();
-        SearchHits searchHits = searchResponse.getHits();
-        SearchHit[] hits = searchHits.getHits();
-        for (SearchHit hit : hits) {
-            String sourceAsString = hit.getSourceAsString();
-            System.out.println(sourceAsString);
-        }
-    }
-
-    /**
-     * 查找es中某个字段的范围
-     * 列如查找年龄18到28的人,不包含18和28
-     *
-     * @param indexName es索引库名
-     * @param typeName  es表名
-     * @param field     字段名
-     * @param gtValue   大于某个值
-     * @param ltValue   小于某个值
-     */
-    public static void rangeQuery(String indexName, String typeName, String field, String gtValue, String ltValue) {
-        SearchResponse searchResponse = client.prepareSearch(indexName)
-                .setTypes(typeName)
-                .setQuery(new RangeQueryBuilder(field).gt(gtValue).lt(ltValue))
-                .get();
-        SearchHits hits = searchResponse.getHits();
-        SearchHit[] hits1 = hits.getHits();
-        for (SearchHit documentFields : hits1) {
-            System.out.println(documentFields.getSourceAsString());
-        }
-    }
 
     /**
      * @param list     具体查看Parameter
@@ -419,8 +375,8 @@ public class EsUtils {
         return indexName;
     }
 
-    public static void main(String[] args) throws UnknownHostException {
-        checkinitClient("trustfar-elastic","172.16.100.205");
+    public static void main(String[] args) throws Exception {
+        EsUtils.checkinitClient("trustfar-elastic","172.16.100.205");
 //        deleteIndex("pref_index");
 //        createIndex("pref_index");
 //        testInsert();
@@ -440,10 +396,12 @@ public class EsUtils {
         parameters.add(parameter1);
         parameters.add(parameter2);
         List<String> listTimeAndValue = EsUtils.getListTimeAndValue(parameters, 1, 1);
+        HadoopUtils.connHadoopByHA();
+        HadoopUtils.writeByList("/tmp/aaa.txt",listTimeAndValue);
         for (String s : listTimeAndValue) {
             System.out.println(s);
         }
-        close();
+        EsUtils.close();
     }
 
     /**
