@@ -7,6 +7,7 @@ import cn.trustfar.aiops.bean.PerfReusltBean;
 import cn.trustfar.aiops.constant.CommonConstants;
 import cn.trustfar.aiops.pojo.Parameter;
 import cn.trustfar.aiops.pojo.PerfAlertDealData;
+import cn.trustfar.aiops.pojo.Time;
 import lombok.SneakyThrows;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -32,6 +33,7 @@ import org.json.JSONObject;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -176,7 +178,7 @@ public class EsUtils {
      */
     public static List<String> getListTimeAndValue(List<Parameter> list,
                                                        int dataType,
-                                                       int sendFrequency){
+                                                       int sendFrequency) throws ParseException {
         SearchHit[] searchHits = searchHits(list, dataType);
         List<String> resultList = new ArrayList<>();//最终返回的数据
         for (SearchHit documentFields : searchHits) {
@@ -184,9 +186,10 @@ public class EsUtils {
             //格式年月日时分秒20190123100908
             Object time = sourceAsMap.get("MONITOR_TIME");
             //转换成分钟格式年月日时分20190123100900
-            String minuteTime = time.toString().substring(0, time.toString().length() - 2)+"00";
+//            String secondTime = time.toString().substring(0, time.toString().length() - 2)+"00";
+            String timeString = TimeUtils.getStringTimeByStringTime(time.toString());
             Object value = sourceAsMap.get("VALUE");
-            resultList.add(minuteTime+","+value.toString());
+            resultList.add(timeString+","+value.toString());
         }
         //TODO缺失值计算
         int missFrequency = sendFrequency * CommonConstants.Unit_five;
@@ -396,8 +399,8 @@ public class EsUtils {
         parameters.add(parameter1);
         parameters.add(parameter2);
         List<String> listTimeAndValue = EsUtils.getListTimeAndValue(parameters, 1, 1);
-        HadoopUtils.connHadoopByHA();
-        HadoopUtils.writeByList("/tmp/aaa.txt",listTimeAndValue);
+//        HadoopUtils.connHadoopByHA();
+//        HadoopUtils.writeByList("/tmp/aaa.txt",listTimeAndValue);
         for (String s : listTimeAndValue) {
             System.out.println(s);
         }

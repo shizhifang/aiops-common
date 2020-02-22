@@ -9,38 +9,33 @@ import java.util.Date;
 import java.util.List;
 
 public class TimeUtils {
-    public static Calendar getCalendarByStringMinuteTime(String time){
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
-        Date paramDate=null;
+    static SimpleDateFormat sdfSecond1 = new SimpleDateFormat("yyyyMMddHHmmss");
+    static SimpleDateFormat sdfSecond2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+
+    /**
+     * 把格式为yyyyMMddHHmmss的时间字符串转换成yyyy-MM-dd HH:mm:ss的时间字符串
+     * 并且处理掉秒
+     * @param time 20190123100923
+     * @return 2019-01-23 10:09:00
+     */
+    public static String getStringTimeByStringTime(String time) throws ParseException {
+        Date paramDate = sdfSecond1.parse(time);
         Calendar calendar = Calendar.getInstance();
-        try {
-            paramDate = sdf.parse(time);
-            calendar.setTime(paramDate);
-        } catch (ParseException e) {
-            e.printStackTrace();
+        calendar.setTime(paramDate);
+        calendar.set(Calendar.SECOND,0);
+        String format = sdfSecond2.format(calendar.getTime());
+        return format;
+    }
+
+
+    public static void main(String[] args) throws ParseException {
+        String firstTime = "20190123100923";
+        String endTime = "20190123101000";
+        for(int i=0;i<100;i++){
+            String stringTimeByStringSecondTime = TimeUtils.getStringTimeByStringTime(firstTime);
+            System.out.println(stringTimeByStringSecondTime);
         }
-        return calendar;
-    }
-
-    public static String getStringByMinuteCalendar(Calendar calendar){
-        Date time = calendar.getTime();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmm");
-        return sdf.format(time);
-
-    }
-    public static String getSystimeTime(){
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
-        return sdf.format(new Date());
-    }
-
-    public static void main(String[] args) {
-        String firstTime = "201901231009";
-        Calendar firstCalendar = TimeUtils.getCalendarByStringMinuteTime(firstTime);
-        String endTime = "201901231010";
-        Calendar endCalendar = TimeUtils.getCalendarByStringMinuteTime(endTime);
-        System.out.println(firstCalendar.getTime().getTime()/ (60 * 10000));
-        System.out.println(endCalendar.getTime().getTime()/ (60 * 10000));
-        long tmp = (endCalendar.getTime().getTime() - firstCalendar.getTime().getTime()) / (60 * 10000);
     }
 
 }
