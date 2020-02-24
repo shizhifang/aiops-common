@@ -161,6 +161,7 @@ public class EsUtils {
                 .setTypes(CommonConstants.EsIndexType)
                 .setQuery(boolQueryBuilder)
 //                .addSort(fieldSortBuilder)
+                .setSize(2147483647)//Elasticsearch支持的最大值是2^31-1
                 .get();
         SearchHits hits = searchResponse.getHits();
         SearchHit[] hits1 = hits.getHits();
@@ -387,17 +388,27 @@ public class EsUtils {
         //1.创建两个参数对象
         Parameter parameter1 = new Parameter("CI_ID",CommonConstants.SINGLE);
         Parameter parameter2 = new Parameter("MONITOR_TIME",CommonConstants.RANGE);
+        Parameter parameter3 = new Parameter("KPI_ID",CommonConstants.SINGLE);
         //2.往第一个参数对象放值
         List<Object> list = new ArrayList<>();
-        list.add("26");
+        list.add("111");
         parameter1.setValue(list);
         //3.往第二个参数对象放值
         List<Object> list2 = new ArrayList<>();
-        list2.add("20200108000100");
-        list2.add("20201108000100");
+        list2.add("20200101000100");
+        list2.add("20200301000100");
         parameter2.setValue(list2);
+        //4.
+        List<Object> list3=new ArrayList<>();
+        list3.add(1);
+        parameter3.setValue(list3);
+        //
         parameters.add(parameter1);
         parameters.add(parameter2);
+        parameters.add(parameter3);
+//        HttpClientUtil.get("http://172.16.100.205:9200/perf_index/type/_search");
+
+
         List<String> listTimeAndValue = EsUtils.getListTimeAndValue(parameters, 1, 1);
 //        HadoopUtils.connHadoopByHA();
 //        HadoopUtils.writeByList("/tmp/aaa.txt",listTimeAndValue);
