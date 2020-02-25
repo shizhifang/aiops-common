@@ -190,7 +190,11 @@ public class EsUtils {
 //            String secondTime = time.toString().substring(0, time.toString().length() - 2)+"00";
             String timeString = TimeUtils.getStringTimeByStringTime(time.toString());
             Object value = sourceAsMap.get("VALUE");
-            resultList.add(timeString+","+value.toString());
+            if(value.toString().equalsIgnoreCase("0x0000")||value.toString().equalsIgnoreCase("0x0800")){
+                resultList.add(timeString+","+"1");
+            }else {
+                resultList.add(timeString+","+value.toString());
+            }
         }
         //TODO缺失值计算
         int missFrequency = sendFrequency * CommonConstants.Unit_five;
@@ -400,10 +404,10 @@ public class EsUtils {
         parameter2.setValue(list2);
         //4.
         List<Object> list3=new ArrayList<>();
-        list3.add(1);
+        list3.add(3);
         parameter3.setValue(list3);
         //
-        parameters.add(parameter1);
+//        parameters.add(parameter1);
         parameters.add(parameter2);
         parameters.add(parameter3);
 //        HttpClientUtil.get("http://172.16.100.205:9200/perf_index/type/_search");
