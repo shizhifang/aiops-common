@@ -2,8 +2,11 @@ package cn.trustfar.aiops.pojo;
 
 import lombok.Data;
 
+import java.io.Serializable;
+import java.util.List;
+
 @Data
-public class PerfAlertDealData {
+public class PerfAlertDealData implements Serializable {
     private String monitor;
     private String system;
     private String module;
@@ -13,5 +16,6 @@ public class PerfAlertDealData {
     private String kpiCode;
     private String kpiName;
     private String kpiShortName;
-    private String CI_ID_LIST;
+    private String alertLevel;
+    private List<String> CI_ID_LIST;
 }

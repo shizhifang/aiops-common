@@ -33,7 +33,7 @@ public class ReadProps {
      * @param key
      * @return String类型的值
      */
-    public String getProps(String key) {
+    public  String getProps(String key) {
         return props.getProperty(key);
     }
     /**
@@ -66,7 +66,7 @@ public class ReadProps {
      * @param defVal
      * @return  int类型的值
      */
-    public int getProps(String key, int defVal) {
+    public  int getProps(String key, int defVal) {
         return (int) getProps(key, (long) defVal);
     }
     /**
